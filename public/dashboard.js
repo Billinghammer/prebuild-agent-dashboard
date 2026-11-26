@@ -7,7 +7,8 @@ const S = {
   quiet: { on:true, from:'21:00', to:'07:00' },
   alertTypes: { deadline:true, lead:true, reply:true, showing:true, weekly:false },
   channels: { app:true, email:true, sms:false },
-  contactFilter:'All', taskFilter:'Open', q:''
+  contactFilter:'All', taskFilter:'Open', q:'',
+  look: { theme:'harbor', custom:'#C2410C', mode:'auto', density:'comfortable', start:'today', home:{brief:true, stats:true, alerts:true, follow:true} }
 };
 const SAMPLE = 'Sample data for review. No real clients.';
 
@@ -77,6 +78,52 @@ function sheet(html){
   $('#sbg').addEventListener('click', e => { if(e.target.id==='sbg' || e.target.dataset.close!==undefined) $('#overlay').innerHTML=''; });
 }
 
+// Color themes. Core gets the first three. Pro unlocks the rest plus a custom color.
+const THEMES = [
+  {k:'harbor', n:'Harbor', pro:false, l:['#1D6A70','#DCECEC'], d:['#5FB7BC','#1E3A3C']},
+  {k:'granite', n:'Granite', pro:false, l:['#3D4F66','#E1E6EE'], d:['#9DB0CC','#26303D']},
+  {k:'pine', n:'Pine', pro:false, l:['#2F6B3F','#DDEBDF'], d:['#79C08C','#1E3426']},
+  {k:'cranberry', n:'Cranberry', pro:true, l:['#9B2F4A','#F4DEE4'], d:['#E68AA1','#3A1E26']},
+  {k:'brass', n:'Brass', pro:true, l:['#8A6416','#F3E9D2'], d:['#D9B25E','#362B15']},
+  {k:'midnight', n:'Midnight', pro:true, l:['#2B3A8F','#E0E3F5'], d:['#9AA8F0','#22264A']},
+  {k:'sand', n:'Driftwood', pro:true, l:['#7A5C48','#EFE6DF'], d:['#CFAE96','#33281F']}
+];
+const PRO_START = ['deals','inbox'];
+const hostTheme = document.documentElement.getAttribute('data-theme');
+const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function mix(hex, other, t){
+  const a=hex.match(/\w\w/g).map(x=>parseInt(x,16)), b=other.match(/\w\w/g).map(x=>parseInt(x,16));
+  return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+function isDark(){
+  const m=S.look.mode, root=document.documentElement.getAttribute('data-theme');
+  if(m==='dark') return true; if(m==='light') return false;
+  if(root==='dark') return true; if(root==='light') return false;
+  return !!(mq && mq.matches);
+}
+function lockToTier(){
+  if(S.tier==='Pro') return;
+  const th=THEMES.find(t=>t.k===S.look.theme);
+  if(S.look.theme==='custom' || (th && th.pro)) S.look.theme='harbor';
+  if(PRO_START.includes(S.look.start)) S.look.start='today';
+  S.look.home={brief:true, stats:true, alerts:true, follow:true};
+}
+function applyLook(){
+  const root=document.documentElement;
+  if(S.look.mode==='auto'){ if(hostTheme) root.setAttribute('data-theme',hostTheme); else root.removeAttribute('data-theme'); }
+  else root.setAttribute('data-theme', S.look.mode);
+  const dark=isDark();
+  let acc, soft;
+  if(S.look.theme==='custom'){
+    const c=S.look.custom; acc= dark? mix(c,'#ffffff',.35) : c; soft= dark? mix(c,'#0F1615',.78) : mix(c,'#ffffff',.85);
+  } else { const t=THEMES.find(x=>x.k===S.look.theme)||THEMES[0]; [acc,soft]= dark? t.d : t.l; }
+  root.style.setProperty('--accent',acc); root.style.setProperty('--accent-soft',soft);
+  root.style.setProperty('--accent-ink', dark? '#0B1413' : '#FFFFFF');
+  document.body.classList.toggle('compact', S.look.density==='compact');
+  try{ localStorage.setItem('pb-look', JSON.stringify(S.look)); }catch(e){}
+}
+if(mq && mq.addEventListener) mq.addEventListener('change', applyLook);
+
 function header(){
   $('#av').textContent = S.persona.name.charAt(0).toUpperCase() || 'A';
   $('#pname').textContent = S.persona.name || 'Assistant';
@@ -91,9 +138,10 @@ function renderTabs(){
 const V = {};
 V.today = () => {
   const open = tasks.filter(t=>!t.done).length;
+  const h=S.look.home;
   return `
   <div class="demo-note">${SAMPLE}</div>
-  <div class="card brief">
+  ${h.brief?`<div class="card brief">
     <div class="k">Thursday brief · from ${esc(S.persona.name)}</div>
     <p>Good morning, Jason. Two things need you before noon. The rest I've handled or queued.</p>
     <ul>
@@ -102,21 +150,21 @@ V.today = () => {
       <li>I drafted a reply to a new Rye waterfront lead. Tap to approve.</li>
     </ul>
     <div class="btn-row"><button class="btn" data-go="inbox">Review draft</button><button class="btn" data-go="deals">Open deals</button></div>
-  </div>
-  <div class="stats">
+  </div>`:''}
+  ${h.stats?`<div class="stats">
     <button class="stat" data-go="tasks"><b>${open}</b><span>Open tasks</span></button>
     <button class="stat" data-go="people"><b>3</b><span>Follow-ups</span></button>
     <button class="stat" data-go="deals"><b>${deals.length}</b><span>Active deals</span></button>
     <button class="stat" data-go="inbox"><b>${mail.filter(m=>m.unread).length}</b><span>Unread</span></button>
-  </div>
-  <h3>Alerts</h3>
+  </div>`:''}
+  ${h.alerts?`<h3>Alerts</h3>
   <div class="list">${alerts.map((a,i)=>`
     <button class="row" data-alert="${i}"><span class="dot d-${a.c}"></span><span class="main"><span class="t">${esc(a.t)}</span><span class="s" style="display:block">${esc(a.s)}</span></span><span class="side">${a.when}</span></button>`).join('')}
-  </div>
-  <h3>Today's follow-ups</h3>
+  </div>`:''}
+  ${h.follow?`<h3>Today's follow-ups</h3>
   <div class="list">${contacts.filter(c=>['Today','Overdue'].includes(c.due)).map(c=>`
     <button class="row" data-contact="${contacts.indexOf(c)}"><span class="main"><span class="t">${esc(c.n)}</span><span class="s" style="display:block">${esc(c.next)}</span></span><span class="pill ${c.due==='Overdue'?'p-crit':'p-warn'}">${c.due}</span></button>`).join('')}
-  </div>`;
+  </div>`:''}`;
 };
 V.people = () => {
   const types = ['All','Lead','Buyer','Seller','Past client'];
@@ -154,7 +202,25 @@ V.settings = () => {
   const pro = S.tier==='Pro';
   const sw = (id, on, dis=false) => `<span class="switch"><input type="checkbox" id="${id}" ${on?'checked':''} ${dis?'disabled':''}><span></span></span>`;
   const lv = [['Quiet','Only urgent items. You ask, I act.'],['Balanced','Daily brief, flags risks, drafts replies.'],['Hands-on','Nudges often, preps everything ahead.']];
+  const L=S.look, lockP = pro?'':'disabled';
+  const proTag = pro?'':' <span class="pill p-pro">Pro</span>';
   return `<h2>Preferences</h2>
+  <h3>Color theme</h3>
+  <div class="list"><div class="swatches">${THEMES.map(t=>{const dis=t.pro&&!pro;return `<button class="sw ${L.theme===t.k?'on':''}" data-theme-k="${t.k}" ${dis?'disabled':''} aria-label="${t.n}${dis?' (Pro)':''}"><i style="background:${t.l[0]}"></i>${t.n}${dis?'<span class="lock">PRO</span>':''}</button>`}).join('')}
+    <label class="sw ${L.theme==='custom'?'on':''}" ${pro?'':'aria-disabled="true" style="opacity:.55;cursor:not-allowed"'}><input type="color" id="lk-custom" value="${L.custom}" ${lockP} aria-label="Custom color${pro?'':' (Pro)'}">Custom${pro?'':'<span class="lock">PRO</span>'}</label>
+  </div></div>
+  <h3>Light or dark</h3>
+  <div class="list"><div class="opt3">${[['auto','Match phone'],['light','Light'],['dark','Dark']].map(([k,n])=>`<button data-mode="${k}" class="${L.mode===k?'on':''}">${n}</button>`).join('')}</div></div>
+  <h3>Layout</h3>
+  <div class="list">
+    <div class="setting"><label>Spacing<span class="s">Compact fits more on one screen</span></label><span class="seg" style="margin:0;flex:none">${['comfortable','compact'].map(k=>`<button data-density="${k}" class="${L.density===k?'on':''}">${k==='comfortable'?'Roomy':'Compact'}</button>`).join('')}</span></div>
+    <div class="setting"><label for="lk-start">Opens to${proTag}<span class="s">${pro?'The screen you see when you open the app':'Core opens to Today. Pro can open to Deals or Inbox.'}</span></label><select id="lk-start">${[['today','Today'],['deals','Deals'],['inbox','Inbox']].map(([k,n])=>`<option value="${k}" ${L.start===k?'selected':''} ${!pro&&k!=='today'?'disabled':''}>${n}</option>`).join('')}</select></div>
+  </div>
+  <h3>Today screen${proTag}</h3>
+  <div class="list">
+    ${[['brief','Morning brief'],['stats','Quick counts'],['alerts','Alerts'],['follow','Today\'s follow-ups']].map(([k,n])=>`<div class="setting"><label for="hm-${k}">${n}${pro?'':'<span class="s">Pro can hide sections it doesn\'t need</span>'}</label>${sw('hm-'+k, L.home[k], !pro)}</div>`).join('')}
+  </div>
+  ${pro?'':'<div class="upsell">Pro unlocks four more color themes, a custom brand color, the start screen, and a Today screen you can trim down.</div>'}
   <h3>Assistant</h3>
   <div class="list">
     <div class="setting"><label for="pn">Name<span class="s">What your assistant signs as</span></label><input type="text" id="pn" value="${esc(S.persona.name)}" maxlength="20" style="width:130px"></div>
@@ -191,7 +257,7 @@ V.settings = () => {
 };
 
 function render(){
-  header(); renderTabs();
+  applyLook(); header(); renderTabs();
   $('#main').innerHTML = `<div class="view">${V[S.tab]()}</div>`;
   const q = $('#q'); if(q){ q.addEventListener('input', e => { S.q = e.target.value; const pos=e.target.selectionStart; render(); const n=$('#q'); n.focus(); n.setSelectionRange(pos,pos); }); }
 }
@@ -201,9 +267,12 @@ document.addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.tab) return go(b.dataset.tab);
   if(b.dataset.go) return go(b.dataset.go);
-  if(b.id==='tierBtn'){ S.tier = S.tier==='Core'?'Pro':'Core'; if(S.tier==='Core') S.channels.sms=false; render(); return toast(`Previewing ${S.tier}`); }
+  if(b.id==='tierBtn'){ S.tier = S.tier==='Core'?'Pro':'Core'; if(S.tier==='Core'){ S.channels.sms=false; lockToTier(); } render(); return toast(`Previewing ${S.tier}`); }
   if(b.dataset.cf){ S.contactFilter=b.dataset.cf; return render(); }
   if(b.dataset.tf){ S.taskFilter=b.dataset.tf; return render(); }
+  if(b.dataset.themeK){ S.look.theme=b.dataset.themeK; render(); return; }
+  if(b.dataset.mode){ S.look.mode=b.dataset.mode; return render(); }
+  if(b.dataset.density){ S.look.density=b.dataset.density; return render(); }
   if(b.dataset.lv){ S.proactivity=b.dataset.lv; render(); return toast(`Proactivity set to ${b.dataset.lv}`); }
   if(b.dataset.task){ const t=tasks[+b.dataset.task]; t.done=!t.done; render(); return toast(t.done?'Task done':'Task reopened'); }
   if(b.id==='addTask'){ return sheet(`<h4>Add task</h4><div class="body"><input type="text" id="nt" placeholder="e.g. Call Priya about pricing" style="width:100%"><div class="btn-row"><button class="btn primary" id="saveTask">Add</button><button class="btn" data-close>Cancel</button></div></div>`); }
@@ -221,7 +290,13 @@ document.addEventListener('change', e => {
   else if(id==='qf') S.quiet.from=e.target.value;
   else if(id==='qt') S.quiet.to=e.target.value;
   else if(id==='pt') S.persona.tone=e.target.value;
+  else if(id==='lk-custom'){ if(S.tier!=='Pro') return; S.look.custom=e.target.value; S.look.theme='custom'; render(); }
+  else if(id==='lk-start'){ S.look.start=e.target.value; toast('Saved. Applies next time you open the app.'); }
+  else if(id.startsWith('hm-')){ S.look.home[id.slice(3)]=e.target.checked; }
   else if(id==='pn'){ S.persona.name=e.target.value.trim()||'Assistant'; header(); toast('Name updated'); }
 });
+try{ const saved=JSON.parse(localStorage.getItem('pb-look')||'null'); if(saved){ Object.assign(S.look, saved); S.look.home=Object.assign({brief:true,stats:true,alerts:true,follow:true}, saved.home||{}); } }catch(e){}
+lockToTier();
+if(S.look.start && S.look.start!=='today') S.tab=S.look.start;
 render();
 })();
