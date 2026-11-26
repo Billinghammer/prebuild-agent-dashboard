@@ -1,0 +1,9 @@
+{
+  "name": "Prebuild Assistant",
+  "short_name": "Assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F5F3",
+  "theme_color": "#1D6A70",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
