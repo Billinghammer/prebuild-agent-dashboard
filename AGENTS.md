@@ -18,7 +18,12 @@ Client-facing dashboard for the Prebuild Media AI assistant service for real est
 - `public/dashboard.js` current UI logic and sample data (v0.1)
 - `public/manifest.json`, `public/icon.svg` home-screen install
 
+## Sign-in
+- Supabase Auth with Google OAuth and email magic links (`lib/supabase/`, `middleware.js`, `app/login`, `app/auth/*`).
+- No env vars set = demo mode, no sign-in gate. Setup steps are in README.md.
+- Sign-in scopes are basic (name, email). Request Drive/Gmail scopes in a separate, explicit consent step.
+
 ## Next steps
 1. Move tabs into React components.
-2. Add login (Supabase Auth).
-3. Read contacts, tasks, deals, alerts and preferences from the client's DB.
+2. Read contacts, tasks, deals, alerts and preferences from the client's DB.
+3. Per-client access rules (row level security) before any real client data.
