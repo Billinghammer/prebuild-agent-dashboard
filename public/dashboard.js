@@ -248,6 +248,11 @@ V.settings = () => {
     <div class="setting"><label for="qh">Hold non-urgent alerts<span class="s">Deadline risks still come through</span></label>${sw('qh',S.quiet.on)}</div>
     <div class="setting"><span class="quiet"><label for="qf">From</label><input type="time" id="qf" value="${S.quiet.from}" ${S.quiet.on?'':'disabled'}><label for="qt">to</label><input type="time" id="qt" value="${S.quiet.to}" ${S.quiet.on?'':'disabled'}></span></div>
   </div>
+  <h3>Account</h3>
+  <div class="list">${(()=>{const r=document.getElementById('appRoot'); const em=r?r.dataset.userEmail:''; const on=r&&r.dataset.auth==='on';
+    return on ? `<div class="setting"><label>Signed in<span class="s" style="overflow-wrap:anywhere">${esc(em||'Signed in')}</span></label><button class="btn" id="signOut">Sign out</button></div>`
+              : `<div class="setting"><label>Demo mode<span class="s">Sign-in turns on once it's set up in Vercel</span></label><span class="pill p-warn">Demo</span></div>`;})()}
+  </div>
   <h3>Your data</h3>
   <div class="list">
     <div class="setting"><label>Support access<span class="s">Off. You approve any time-limited access, and it is logged.</span></label><span class="pill p-ok">Off</span></div>
@@ -280,6 +285,7 @@ document.addEventListener('click', e => {
   if(b.dataset.contact){ const c=contacts[+b.dataset.contact]; return sheet(`<h4>${esc(c.n)}</h4><div class="s">${c.type} · ${esc(c.stage)} · last touch ${c.last}</div><div class="body">${esc(c.note)}</div><div class="draft"><b>Next step:</b> ${esc(c.next)} (${c.due})</div><div class="btn-row"><button class="btn primary" data-close>Log a touch</button><button class="btn" data-close>Ask ${esc(S.persona.name)} to draft</button></div>`); }
   if(b.dataset.alert){ const a=alerts[+b.dataset.alert]; return sheet(`<h4>${esc(a.t)}</h4><div class="body">${esc(a.s)}</div><div class="btn-row"><button class="btn primary" data-go="deals">Open deal</button><button class="btn" data-close>Snooze 2 hours</button></div>`); }
   if(b.dataset.mail){ const i=+b.dataset.mail, m=mail[i]; m.unread=false; renderTabs(); return sheet(`<h4>${esc(m.s)}</h4><div class="s">From ${esc(m.f)} · ${m.t}</div><div class="body">${esc(m.p)}</div>${m.draft?`<h3>${esc(S.persona.name)}'s draft reply</h3><div class="draft">${esc(m.draft)}</div><div class="btn-row"><button class="btn primary" data-approve="${i}">Approve and send</button><button class="btn" data-close>Edit</button></div>`:''}`); }
+  if(b.id==='signOut'){ const f=document.getElementById('signoutForm'); if(f) f.submit(); return; }
   if(b.dataset.approve){ const m=mail[+b.dataset.approve]; m.tag='Sent'; m.tagc='ok'; m.draft=''; $('#overlay').innerHTML=''; render(); return toast('Demo only. Nothing was sent.'); }
 });
 document.addEventListener('change', e => {
